@@ -167,30 +167,28 @@ if __name__ == "__main__":
         batch_size=256
     )
 
-    # Inference (recommend for user 0)
+    # Vectorised Inference (recommend for user 0)
 
     user_id = 0
-    user_vec = user_features[user_id]
 
-    all_scores = []
+    # User embedding
+    user_vec = user_features[user_id].reshape(1, -1)
+    user_embedding = user_model.predict(user_vec, verbose=0)
 
-    for movie_id in range(movie_features.shape[0]):
-        score = model.predict(
-            [user_vec.reshape(1, -1), movie_features[movie_id].reshape(1, -1)],
-            verbose=0
-        )[0][0]
+    # All movie embeddings
+    movie_embeddings = movie_model.predict(movie_features, verbose=0)
 
-        all_scores.append(score)
-
-    all_scores = np.array(all_scores)
+    # Compute scores
+    scores = user_embedding @ movie_embeddings.T
+    scores = scores.flatten()
 
     # Remove seen movies
     seen = [m for u, m, _ in ratings if u == user_id]
-    all_scores[seen] = -np.inf                          # Filter Seen Movies - Prevent recommending already watched movies
+    scores[seen] = -np.inf
 
-    top_indices = np.argsort(all_scores)[::-1][:10] # Ranking - Sort movies by predicted score
+    # Top recommendations
+    top_indices = np.argsort(scores)[::-1][:10]
 
     print("\nTop recommendations:\n")
     for idx in top_indices:
         print(movies[idx]["title"])
-
