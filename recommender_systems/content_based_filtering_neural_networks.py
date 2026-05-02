@@ -3,6 +3,15 @@ import tensorflow as tf
 from tensorflow.keras import layers, Model
 
 
+# 0 → Toy Story → Animation | Comedy
+# 1 → Heat → Action | Crime
+# 2 → Titanic → Romance | Drama
+# (user, movie, rating)
+# (0, 0, 5)  # user 0 loves Toy Story
+# (0, 1, 4)  # user 0 likes Heat
+# (1, 2, 5)  # user 1 loves Titanic
+# (1, 0, 2)  # user 1 dislikes Toy Story
+# (0, 2, 1)  # user 0 dislikes Titanic
 def load_ratings(path):
     data = []
 
@@ -14,6 +23,13 @@ def load_ratings(path):
     return data
 
 
+# movies = {
+#   0: {title: Toy Story, genres: [Animation, Comedy]},
+#   1: {title: Heat, genres: [Action, Crime]},
+#   2: {title: Titanic, genres: [Romance, Drama]}
+# }
+# Extracted genres:
+# ['Action', 'Animation', 'Comedy', 'Crime', 'Drama', 'Romance']
 def load_movies(path):
     movies = {}
     genre_set = set()
@@ -33,6 +49,10 @@ def load_movies(path):
 
 
 # Toy Story → [Animation=1, Comedy=1, others=0]
+# each index is a genre
+# Movie 0 (Toy Story): [0,1,1,0,0,0]
+# Movie 1 (Heat):      [1,0,0,1,0,0]
+# Movie 2 (Titanic):   [0,0,0,0,1,1]
 def create_movie_features(movies, genre_list):
     genre_index = {g: i for i, g in enumerate(genre_list)}
 
@@ -49,6 +69,18 @@ def create_movie_features(movies, genre_list):
 
 
 # [Action=high, Romance=low, Comedy=medium]
+# user_features[user] += rating × movie_features[movie]
+# User 0
+# Ratings:
+# Toy Story (5)
+# Heat (4)
+# Titanic (1)
+# Calculation:
+# 5 × [0,1,1,0,0,0] = [0,5,5,0,0,0]
+# 4 × [1,0,0,1,0,0] = [4,0,0,4,0,0]
+# 1 × [0,0,0,0,1,1] = [0,0,0,0,1,1]
+# Sum:
+# [4,5,5,4,1,1]
 def create_user_features(num_users, ratings, movie_features):
     num_features = movie_features.shape[1]
     user_features = np.zeros((num_users, num_features))
@@ -56,7 +88,14 @@ def create_user_features(num_users, ratings, movie_features):
     for user, movie, rating in ratings:
         user_features[user] += rating * movie_features[movie]
 
-    # normalize
+    #     Normalization
+    # We divide by magnitude:
+    # User 0:
+    # ||u|| = sqrt(4²+5²+5²+4²+1²+1²)
+    #       ≈ sqrt(16+25+25+16+1+1)
+    #       ≈ sqrt(84) ≈ 9.16
+    # Normalized:
+    # [0.44, 0.55, 0.55, 0.44, 0.11, 0.11]
     norms = np.linalg.norm(user_features, axis=1, keepdims=True) + 1e-8
     user_features = user_features / norms
 
@@ -64,6 +103,12 @@ def create_user_features(num_users, ratings, movie_features):
 
 
 # (user_features, movie_features) → rating Eg: [0.2, 0.8, ...], [1,0,0,...] -> 5
+# Each row becomes:
+
+# (user_features, movie_features) → rating
+# Example:
+# ([0.44,0.55,...], [0,1,1,0,0,0]) → 5
+# ([0.44,0.55,...], [1,0,0,1,0,0]) → 4
 def create_training_data(ratings, user_features, movie_features):
     user_inputs = []
     movie_inputs = []
@@ -82,6 +127,9 @@ def create_training_data(ratings, user_features, movie_features):
 
 
 # movie tower (compare with blog)
+# Movie tower
+# [0,1,1,0,0,0]
+# → Dense → Dense → embedding (Vm)
 def build_movie_model(num_features, embedding_dim=32):
     inputs = tf.keras.Input(shape=(num_features,))
 
@@ -94,6 +142,9 @@ def build_movie_model(num_features, embedding_dim=32):
 
 
 # user tower 
+# User tower
+# [0.44,0.55,...]
+# → Dense → Dense → embedding (Vu)
 def build_user_model(num_features, embedding_dim=32):
     inputs = tf.keras.Input(shape=(num_features,))
 
@@ -106,6 +157,14 @@ def build_user_model(num_features, embedding_dim=32):
 
 
 # two tower model as seen in blog 
+# Before NN:
+# Toy Story = Animation + Comedy
+# Heat = Action + Crime
+# After NN:
+# Toy Story = fun + family + light
+# Heat = intense + dark + serious
+
+# These are learned automatically
 def build_two_tower_model(user_model, movie_model):
 
     user_input = tf.keras.Input(shape=user_model.input_shape[1:])
