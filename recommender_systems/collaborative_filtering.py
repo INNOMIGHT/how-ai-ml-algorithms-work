@@ -131,19 +131,41 @@ def compute_gradients_vectorized(X, Theta, Y, R, lambda_):
 
     return X_grad, Theta_grad
 
-def gradient_descent(X, Theta, Y, R, alpha, lambda_, num_iters):
-    for iteration in range(num_iters):
 
+
+def gradient_descent(X, Theta, Y, R, alpha, lambda_, num_iters):
+    """
+        Optimize movie feature vectors and user preference vectors using batch gradient descent.
+    
+        This function repeatedly computes gradients for the collaborative filtering
+        objective and updates `X` and `Theta` to reduce prediction error on the
+        observed ratings indicated by `R`. Progress is logged every 10 iterations
+        using the current cost and RMSE.
+    
+        Args:
+            X (np.ndarray): Movie feature matrix of shape (num_movies, num_features).
+            Theta (np.ndarray): User preference matrix of shape (num_users, num_features).
+            Y (np.ndarray): Ratings matrix of shape (num_movies, num_users).
+            R (np.ndarray): Binary indicator matrix of shape (num_movies, num_users),
+                where 1 means a rating exists and 0 means missing.
+            alpha (float): Learning rate for each update step.
+            lambda_ (float): Regularization strength applied to both `X` and `Theta`.
+            num_iters (int): Number of gradient descent iterations to run.
+    
+        Returns:
+            tuple[np.ndarray, np.ndarray]: The updated movie feature matrix `X` and
+            user preference matrix `Theta`.
+        """    
+    for iteration in range(num_iters):
         X_grad, Theta_grad = compute_gradients_vectorized(X, Theta, Y, R, lambda_)
 
         X -= alpha * X_grad
         Theta -= alpha * Theta_grad
 
         if iteration % 10 == 0:
-            J = compute_cost_vectorized(X, Theta, Y, R, lambda_)
+            cost = compute_cost_vectorized(X, Theta, Y, R, lambda_)
             rmse = compute_rmse(X, Theta, Y, R)
-            print(f"Iteration {iteration}, Cost: {J}, RMSE: {rmse}")
-
+            print(f"Iteration {iteration}, Cost: {cost}, RMSE: {rmse}")
     return X, Theta
 
 if __name__ == "__main__":
